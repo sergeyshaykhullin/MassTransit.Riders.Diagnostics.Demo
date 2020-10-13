@@ -9,3 +9,12 @@ This is a reproducible demo for https://github.com/MassTransit/MassTransit/issue
 - Run this project
 
 - HTTP GET `localhost:5000/send-message`
+
+## Workflow
+
+- /send-message
+  - produce `Message`
+- consume `Message` using `MessageConsumer`
+  - produce `AuditMessage`
+- consume `AuditMessage` using `AuditMessageConsumer`
+  - log to console
