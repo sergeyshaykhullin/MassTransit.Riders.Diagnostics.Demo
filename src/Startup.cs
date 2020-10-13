@@ -1,6 +1,5 @@
 using MassTransit.KafkaIntegration;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenTelemetry.Trace;
@@ -20,7 +19,10 @@ namespace MassTransit.Riders.Diagnostics.Demo
 		{
 			services.AddOpenTelemetryTracing(builder =>
 			{
-				builder.AddMassTransitInstrumentation()
+				builder
+					.AddSource(environment.ApplicationName)
+					.AddMassTransitInstrumentation()
+					.AddAspNetCoreInstrumentation()
 					.AddJaegerExporter(options => options.ServiceName = environment.ApplicationName);
 			});
 
@@ -56,7 +58,7 @@ namespace MassTransit.Riders.Diagnostics.Demo
 			}).AddMassTransitHostedService();
 		}
 
-		public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+		public void Configure(IApplicationBuilder app)
 		{
 			app.UseRouting();
 
@@ -64,13 +66,28 @@ namespace MassTransit.Riders.Diagnostics.Demo
 			{
 				endpoints.MapGet("/send-message", async context =>
 				{
-					var producer = context.RequestServices.GetRequiredService<ITopicProducer<Message>>();
+					var tracer = context.RequestServices.GetRequiredService<TracerProvider>().GetTracer(environment.ApplicationName);
 
-					// This produce is not recorded
-					await producer.Produce(new Message
+					using (tracer.StartActiveSpan("Publish dummy message using Bus"))
 					{
-						Text = "Message text"
-					});
+						var bus = context.RequestServices.GetRequiredService<IBus>();
+
+						await bus.Publish(new Message
+						{
+							Text = "No one consuming, but recorded"
+						});
+					}
+
+					using (tracer.StartActiveSpan("Produce message using Kafka", SpanKind.Server))
+					{
+						var producer = context.RequestServices.GetRequiredService<ITopicProducer<Message>>();
+
+						// This produce is not recorded
+						await producer.Produce(new Message
+						{
+							Text = "Message text"
+						});
+					}
 				});
 			});
 		}
