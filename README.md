@@ -19,4 +19,4 @@ This is a reproducible demo for https://github.com/MassTransit/MassTransit/issue
 - consume `AuditMessage` using `AuditMessageConsumer`
   - log to console
 
-![Demo](https://i.ibb.co/s1H5sdr/Untitled.png)
+![Demo](https://i.imgur.com/SmqLi27.png)
